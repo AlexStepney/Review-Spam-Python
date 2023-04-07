@@ -31,17 +31,20 @@ from sklearn.naive_bayes import MultinomialNB
 
 pd.set_option('max_colwidth', None)
 
+#load the dataset
 dataset = pd.read_csv('fake reviews dataset.csv', names=['category', 'rating', 'label', 'text'])
 dataset.head()
 
+#check for any data imbalance
 dataset['label'].value_counts()
 
+#prepare the dataset for training
 dataset['text'] = dataset['text'].str.replace('\n', ' ')
 dataset['target'] = np.where(dataset['label']=='CG', 1, 0)
 dataset['target'].value_counts()
 
+#punctuation is replaced with a text representation of itself
 def punctuation_to_features(dataset, column):
-    #punctuation is replaces with a text representation of itself
     
     dataset[column] = dataset[column].replace('!', ' exclamation ')
     dataset[column] = dataset[column].replace('?', ' question ')
@@ -51,6 +54,7 @@ def punctuation_to_features(dataset, column):
     return dataset[column]
 dataset['text'] = punctuation_to_features(dataset, 'text')
 
+#tokenize the data
 nltk.download('punkt');
 
 def tokenize(column):
@@ -62,6 +66,7 @@ def tokenize(column):
 dataset['tokenized'] = dataset.apply(lambda x: tokenize(x['text']), axis=1)
 dataset.head()
 
+#removal of stopwords
 nltk.download('stopwords');
 # [nltk_data] Downloading package stopwords to /root/nltk_data...
 # [nltk_data]   Package stopwords is already up-to-date!
@@ -74,6 +79,7 @@ def remove_stopwords(tokenized_column):
 dataset['stopwords_removed'] = dataset.apply(lambda x: remove_stopwords(x['tokenized']), axis=1)
 dataset.head()
 
+#apply porter stemming
 def apply_stemming(tokenized_column):
     #Return a list of tokens with Porter stemming applied.
     
@@ -83,15 +89,18 @@ def apply_stemming(tokenized_column):
 dataset['porter_stemmed'] = dataset.apply(lambda x: apply_stemming(x['stopwords_removed']), axis=1)
 dataset.head()
 
+#rejoin words back into string
 def rejoin_words(tokenized_column):
     return ( " ".join(tokenized_column))
 dataset['all_text'] = dataset.apply(lambda x: rejoin_words(x['porter_stemmed']), axis=1)
 dataset[['all_text']].head()
 
+#create training and test data
 X = dataset['all_text']
 y = dataset['target']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, shuffle=True)
 
+#run the model selection process
 classifiers = {}
 classifiers.update({"XGBClassifier": XGBClassifier(eval_metric='logloss', objective='binary:logistic',)})
 classifiers.update({"CatBoostClassifier": CatBoostClassifier(silent=True)})
@@ -128,6 +137,7 @@ for key in classifiers:
 dataset_models = dataset_models.sort_values(by='roc_auc', ascending=False)
 dataset_models
 
+#access the selected model
 bundled_pipeline = Pipeline([("tfidataset", TfidfVectorizer()), 
                              ("clf", SGDClassifier())
                             ])
